@@ -47,6 +47,8 @@ public class AdminCommands implements CommandExecutor {
         } else if(Label.equals("deleteall") && args.length == 1) {
             deleteAll(sender, args[0]);
         } else if(Label.equals("check")) {
+            if(args.length == 0)
+                check(sender, sender.getName(), "1");
             if(args.length == 1)
                 check(sender, args[0], "1");
             else if(args.length == 2)
