@@ -67,6 +67,7 @@ public class InfractionManager {
             sort();
             ois.close();
             file.delete();
+            save();
         } catch(Exception e) {}
         
         else {
