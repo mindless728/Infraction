@@ -100,7 +100,7 @@ public class Infraction implements Serializable, Comparable {
         String t = (pardoned?"pardoned":type); //use the type or pardoned
         ChatColor CT = (pardoned?PARDON:TYPE); //yse type or pardon for coloring
         
-        String ret = ISSUER+i+" "+CT+t+" "+PLAYER+p+NORMAL+" for "+REASON+reason;
+        String ret = ISSUER+i+" "+CT+t+" "+PLAYER+p+NORMAL+" for "+REASON+"\""+reason+"\"";
         
         return ret;
     }
