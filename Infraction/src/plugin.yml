@@ -1,0 +1,39 @@
+name: Infraction
+main: net.mctitan.infraction.InfractionPlugin
+version: 1.1
+author: mindless728
+
+commands:
+    warn:
+        description: warns an online player
+        usage: /warn <player> <reason>
+    kick:
+        description: kicks an online player
+        usage: /kick <player> <reason>
+    ban:
+        description: bans an online player
+        usage: /ban <player> <reason>
+    owarn:
+        description: warns an offline player
+        usage: /owarn <player> <reason>
+    okick:
+        description: kicks an offline player
+        usage: /okick <player> <reason>
+    oban:
+        description: bans an offline player
+        usage: /oban <player> <reason>
+    pardon:
+        description: pardons an infraction
+        usage: /pardon <player> <infraction id>
+    delete:
+        description: deletes and infraction
+        usage: /delete <player> <infraction id>
+    deleteall:
+        description: deletes all infractions a player has
+        usage: /deleteall <player>
+    check:
+        description: checks a moderators infractiosn given
+        usage: /check <moderator> <page>
+    infracts:
+        description: checks a players infractions
+        usage: /infracts <player> <page>
