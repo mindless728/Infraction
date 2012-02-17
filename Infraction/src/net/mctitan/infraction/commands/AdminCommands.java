@@ -114,7 +114,7 @@ public class AdminCommands implements CommandExecutor {
         sender.sendMessage(infract.getOutput(sender.getName()));
         for(Player p : plugin.getServer().getOnlinePlayers())
             if(!p.getName().equals(sender.getName()))
-                p.sendRawMessage(infract.getOutput(name));
+                p.sendRawMessage(infract.getOutput(p.getName()));
     }
     
     public void delete(CommandSender sender, String name, String sid) {
