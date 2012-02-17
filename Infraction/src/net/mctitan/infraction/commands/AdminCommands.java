@@ -154,7 +154,8 @@ public class AdminCommands implements CommandExecutor {
         if(player != null)
             name = player.getName();
         
-        if(!sender.hasPermission(InfractionPerm.ADMIN.toString())) {
+        if(!sender.hasPermission(InfractionPerm.ADMIN.toString()) &&
+           !sender.getName().equals(name)) {
             sender.sendMessage(ChatColor.RED+"You do not have permissions to do that");
             return;
         }
