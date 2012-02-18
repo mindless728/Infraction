@@ -414,7 +414,20 @@ public class InfractionManager {
      * @return whether or not that person is banned
      */
     public boolean isBanned(String name) {
-        return bans.contains(name);
+        boolean ret = bans.contains(name);
+        if(!ret) {
+            LinkedList<Infraction> infracts = infractions.get(name);
+            if(infracts == null)
+                return ret;
+            
+            Infraction infract = infracts.getFirst();
+            if(infract.type.equals("banned") && !infract.pardoned) {
+                ret = true;
+                bans.add(name);
+            }
+        }
+        
+        return ret;
     }
     
     /**
