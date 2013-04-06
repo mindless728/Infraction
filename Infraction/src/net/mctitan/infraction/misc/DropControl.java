@@ -12,7 +12,7 @@ import org.bukkit.event.EventPriority;
  */
 public class DropControl extends RateController {
     /** how many chats/commands allowed per second*/
-    public static int limiter = 10;
+    public static int limiter = 20;
     
     /** the name of the issuer when this bans someone */
     public static String issuer = "StopDrop";

@@ -1,18 +1,27 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package net.mctitan.infraction;
 
 /**
- * Has the permission nodes for certain aspects to the plugin
- * 
- * @author mindless728
+ *
+ * @author Colin
  */
 public enum InfractionPerm {
-    /** User permissions*/
-    USER            {@Override public String toString(){return "infraction.user";}},
+    USER("infraction.user"),
+    MODERATOR("infraction.moderator"),
+    ADMIN("infraction.admin");
     
-    /** Moderator permissions */
-    MODERATOR       {@Override public String toString(){return "infraction.mod";}},
+    /** string that bukkit will test against */
+    public String perm;
     
-    /** Admin permissions */
-    ADMIN           {@Override public String toString(){return "infraction.admin";}}
+    /**
+     * constructs the enmuneration using a string permission
+     * 
+     * @param perm string permission that bukkit will use
+     */
+    private InfractionPerm(String perm) {
+        this.perm = perm;
+    }
 }
-

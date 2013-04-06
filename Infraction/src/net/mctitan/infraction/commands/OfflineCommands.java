@@ -1,144 +1,110 @@
 package net.mctitan.infraction.commands;
 
-import net.mctitan.infraction.InfractionPerm;
-import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+
+import net.mctitan.infraction.InfractionChatColor;
+import net.mctitan.infraction.InfractionPerm;
+import net.mctitan.infraction.InfractionRegex;
 
 /**
- * Commands to infract players when they are offline
- * used for /owarn, /okick, and /oban
+ * handles the offline commands
+ * - /owarn, /okick, /oban
  * 
- * @author mindless728
+ * @author Colin
  */
 public class OfflineCommands extends OnlineCommands {
+    /** message sent if the sender is not an admin and tries the offline command */
+    private static final String SENDER_NOT_ADMIN_ERROR =
+            InfractionChatColor.COLOR_BAD_PLAYER.getColor()+"Only admins can offline ban players";
+    
+    /** message when infracting an already banned player */
+    private static final String PLAYER_BANNED_ERROR =
+            InfractionChatColor.COLOR_BAD_PLAYER.getColor()+"Player "+InfractionRegex.PLAYER_REGEX
+            +" is banned, cannot infract";
+    
     /**
-     * uses th command and gets the information out of the argument list to infract someone
-     * @param sender what sent the command
+     * executes a command that is given to it
+     * 
+     * @param sender what sent the command, either player or console
      * @param command command that was called
-     * @param Label alias of command used
-     * @param args arguments that the command had
-     * @return always true
+     * @param label command alias that was used
+     * @param args arguments for the command
+     * @return 
      */
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String Label, String [] args) {
-        String name;
-        String reason;
-        
-        if(args.length < 2) {
-            sender.sendMessage(ChatColor.RED+"Not enough arguments!");
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        //check for correct number of arguments
+        if(args.length <= 1) {
+            sender.sendMessage(NOT_ENOUGH_ARGUMENTS);
             return true;
         }
         
-        name = args[0];
-        reason = getReasonFromArgs(args,1);
+        //try to get the player
+        Player player = plugin.getServer().getPlayer(args[0]);
         
-        //check to see if he is infracting himself
-        if(sender.getName().equals(name)) {
-            sender.sendMessage(ChatColor.RED+"Cannot infract yourself");
+        //get rid of the o in the alias
+        label = label.substring(1);
+        
+        //if the player doesn't have permissions, do nothing more
+        if(!checkForPermissions(sender))
+            return true;
+        
+        //if the player is online, use the online version
+        if(player != null) {
+            super.onCommand(sender, command, label, args);
             return true;
         }
         
-        //check for permissions
-        if(!sender.hasPermission(InfractionPerm.ADMIN.toString())) {
-            sender.sendMessage(ChatColor.RED+"You do not have permissions to do that");
+        //if the player is banned, do nothing
+        if(checkForBan(sender,args[0]))
+            return true;
+        
+        //check for correct number of arguments
+        if(args.length <= 1) {
+            sender.sendMessage(NOT_ENOUGH_ARGUMENTS);
             return true;
         }
         
-        //do different task for different commands
-        switch (Label) {
-            case "owarn":
-                warn(sender, name, reason);
-                break;
-            case "okick":
-                kick(sender, name, reason);
-                break;
-            case "oban":
-                ban(sender, name, reason);
-                break;
-        }
+        //get the reason
+        String reason = getReason(args,1);
         
-        return true;
-    }
-
-    /**
-     * warns a player when they are offline
-     * 
-     * @param sender what sent the command
-     * @param name player name to warn
-     * @param reason reason for the warning
-     * 
-     * @return true if successful
-     */
-    public boolean warn(CommandSender sender, String name, String reason) {
-        //try to warn them normally (online)
-        if(warn(sender, plugin.getServer().getPlayer(name), reason))
-            return true;
+        //get a new infraction and notify
+        manager.createInfraction(sender.getName(), args[0], getInfractionType(label), reason);
         
-        //if the player is banned, don't give an infraction
-        if(manager.isBanned(name)) {
-            sender.sendMessage(ChatColor.RED+name+ChatColor.GREEN+" is banned, cannot warn");
-            return false;
-        }
-        
-        //create the infraction for the offline player
-        createInfraction(sender, name, reason, "warned");
-        
-        //return true
         return true;
     }
     
     /**
-     * adds an infraction that says kick to an offline player
+     * checks permissions against the sender for the player
      * 
      * @param sender what sent the command
-     * @param name player name to be infracted
-     * @param reason reason for the infraction
-     * 
-     * @return true if successful
+     * @param player player that is trying to be infracted
+     * @return true if allows, false otherwise
      */
-    public boolean kick(CommandSender sender, String name, String reason) {
-        //try to kick them normally
-        if(kick(sender, plugin.getServer().getPlayer(name), reason))
-            return true;
-        
-        //if the player is banned, don't give an infraction
-        if(manager.isBanned(name)) {
-            sender.sendMessage(ChatColor.RED+name+ChatColor.GREEN+" is banned, cannot kick");
+    protected boolean checkForPermissions(CommandSender sender) {
+        if(!sender.hasPermission(InfractionPerm.ADMIN.perm)) {
+            sender.sendMessage(SENDER_NOT_ADMIN_ERROR);
             return false;
         }
         
-        //create the infraction for the offline player
-        createInfraction(sender, name, reason, "kicked");
-        
-        //return true
         return true;
     }
     
     /**
-     * bans the offline player so they cannot connect
+     * checks the player for a ban
      * 
-     * @param sender what sent the command
-     * @param name player name to be infracted
-     * @param reason reason for the infraction
-     * 
-     * @return true if successful
+     * @param sender what is checking for a ban
+     * @param name player name to check agaisnt
+     * @return true if banned, false otherwise
      */
-    public boolean ban(CommandSender sender, String name, String reason) {
-        //try to ban them normally
-        if(ban(sender, plugin.getServer().getPlayer(name), reason))
-            return true;
+    protected boolean checkForBan(CommandSender sender, String name) {
+        boolean ret = manager.getPlayerData(name).isBanned();
         
-        //if the player is banned, don't give an infraction
-        if(manager.isBanned(name)) {
-            sender.sendMessage(ChatColor.RED+name+ChatColor.GREEN+" is banned, cannot ban");
-            return false;
-        }
+        if(ret)
+            sender.sendMessage(PLAYER_BANNED_ERROR.replace(InfractionRegex.PLAYER_REGEX,name));
         
-        //create the infraction for the offline player
-        createInfraction(sender, name, reason, "banned");
-        
-        //return true;
-        return true;
+        return ret;
     }
 }

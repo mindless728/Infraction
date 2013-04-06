@@ -1,238 +1,207 @@
 package net.mctitan.infraction.commands;
 
-import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import net.mctitan.infraction.Infraction;
+import net.mctitan.infraction.InfractionChatColor;
 import net.mctitan.infraction.InfractionManager;
 import net.mctitan.infraction.InfractionPerm;
 import net.mctitan.infraction.InfractionPlugin;
+import net.mctitan.infraction.InfractionRegex;
+import net.mctitan.infraction.InfractionType;
 
 /**
- * Commands to infract players when they are online
- * used for /warn, /kick, /ban
+ * handles the online commands
+ * - /warn, /kick, /ban
  * 
- * @author mindless728
+ * @author Colin
  */
 public class OnlineCommands implements CommandExecutor {
-    /** reference to the plugin */
-    InfractionPlugin plugin;
+    /** instance to the near singleton plugin */
+    protected InfractionPlugin plugin;
     
-    /** reerence to the infraction manager */
-    InfractionManager manager;
+    /** manager of the player data */
+    protected InfractionManager manager;
     
-    /** constructor, gets the objects */
+    /** error message when the player is not online */
+    protected static final String PLAYER_NOT_ONLINE_ERROR =
+            InfractionRegex.COLOR_PLAYER_REGEX+InfractionRegex.PLAYER_REGEX
+            +" is not online, cannot infract";
+    
+    /** error message when player doesn't have basic moderator permissions */
+    protected static final String SENDER_INFRACT_ANY_ERROR =
+            InfractionChatColor.COLOR_BAD_PLAYER.getColor()+
+            "You do not have permissions to infract anyone";
+    
+    /** eror message when player has moderator but sender does not have admin */
+    protected static final String SENDER_INFRACT_MOD_ERROR =
+            InfractionChatColor.COLOR_BAD_PLAYER.getColor()+
+            "You do not have permissions to infract moderators";
+    
+    /** error message sent when trying to infract an admin */
+    protected static final String SENDER_INFRACT_ADMIN_ERROR =
+            InfractionChatColor.COLOR_BAD_PLAYER.getColor()+
+            "You do not have permissions to infract administrators";
+    
+    /** error message sent when sender and player have same name */
+    protected static final String PLAYER_SAME_ERROR =
+            InfractionChatColor.COLOR_BAD_PLAYER.getColor()+"You cannot infract yourself";
+    
+    /** error message sent when there are not enough arguments to a command */
+    protected static final String NOT_ENOUGH_ARGUMENTS =
+            InfractionChatColor.COLOR_BAD_PLAYER.getColor()+"Not enough arguments given, try again";
+    
+    /** Default constructor taking no parameters */
     public OnlineCommands() {
         plugin = InfractionPlugin.getInstance();
         manager = InfractionManager.getInstance();
     }
     
     /**
-     * parses the command if it is a /warn, /kick, or a /ban
+     * executes a command that is given to it
      * 
-     * @param sender what sent the command
+     * @param sender what sent the command, either player or console
      * @param command command that was called
-     * @param Label //alias used to call command
-     * @param args //arguments the command has
-     * 
+     * @param label command alias that was used
+     * @param args arguments for the command
      * @return always true
      */
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String Label, String [] args) {
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        InfractionType type;
         String reason;
+        Player player;
         
-        if(args.length < 2) {
-            sender.sendMessage(ChatColor.RED+"Not enough arguments!");
+        //check for correct number of arguments
+        if(args.length <= 1) {
+            sender.sendMessage(NOT_ENOUGH_ARGUMENTS);
             return true;
         }
         
-        Player player = plugin.getServer().getPlayer(args[0]);
-        reason = getReasonFromArgs(args,1);
-        
-        //if the player isn't on, send a notification
-        if(player == null) {
-            playerNotOnlineNotification(sender, args[0]);
-            return false;
-        }
-        
-        //check to see if the moderator is infracting himself
-        if(sender.getName().equals(player.getName())) {
-            sender.sendMessage(ChatColor.RED+"Cannot infract yourself");
+        //check for player not online
+        if((player = getPlayer(sender,args[0])) == null)
             return true;
-        }
         
         //check for permissions
-        if(!sender.hasPermission(InfractionPerm.MODERATOR.toString()) || 
-           (!sender.hasPermission(InfractionPerm.ADMIN.toString()) &&
-             player.hasPermission(InfractionPerm.MODERATOR.toString()))) {
-            sender.sendMessage(ChatColor.RED+"You do not have permissions to do that");
+        if(!checkForPermissions(sender, player))
+            return true;
+        
+        //check for player the same
+        if(sender.getName().equals(player.getName())) {
+            sender.sendMessage(PLAYER_SAME_ERROR);
             return true;
         }
         
-        //do different task for different commands
-        switch (Label) {
-            case "warn":
-                warn(sender, player, reason);
-                break;
-            case "kick":
-                kick(sender, player, reason);
-                break;
-            case "ban":
-                ban(sender, player, reason);
-                break;
+        //get the infraction type
+        type = getInfractionType(label);
+        
+        //get the infraction reason
+        reason = getReason(args,1);
+        
+        //create the infraction and notify
+        manager.createInfraction(sender.getName(), player.getName(), type, reason);
+        
+        return true;
+    }
+    
+    /**
+     * Gets the player by name if online, or gives an error and returns null
+     * 
+     * @param sender what sent the command
+     * @param name name to look for
+     * @return player if found, null otherwise
+     */
+    protected Player getPlayer(CommandSender sender, String name) {
+        Player player = plugin.getServer().getPlayer(name);
+        String error;
+        
+        if(player == null) {
+            error = PLAYER_NOT_ONLINE_ERROR;
+            error = error.replace(InfractionRegex.PLAYER_REGEX,name);
+            error = InfractionChatColor.replaceColor(error,InfractionChatColor.COLOR_BAD_PLAYER);
+            
+            sender.sendMessage(error);
+            return null;
+        }
+        
+        return player;
+    }
+    
+    /**
+     * checks permissions against the sender for the player
+     * 
+     * @param sender what sent the command
+     * @param player player that is trying to be infracted
+     * @return true if allows, false otherwise
+     */
+    protected boolean checkForPermissions(CommandSender sender, Player player) {
+        //check if sender has basic moderators permissions
+        if(!sender.hasPermission(InfractionPerm.MODERATOR.perm) &&
+           !sender.hasPermission(InfractionPerm.ADMIN.perm)) {
+            sender.sendMessage(SENDER_INFRACT_ANY_ERROR);
+            return false;
+        }
+        
+        //if the player is a moderator, make sure the sender is an admin
+        if((player.hasPermission(InfractionPerm.MODERATOR.perm) &&
+            !sender.hasPermission(InfractionPerm.ADMIN.perm))) {
+            sender.sendMessage(SENDER_INFRACT_MOD_ERROR);
+            return false;
+        }
+        
+        //no infracting admins
+        if(player.hasPermission(InfractionPerm.ADMIN.perm)) {
+            sender.sendMessage(SENDER_INFRACT_ADMIN_ERROR);
+            return false;
         }
         
         return true;
     }
     
     /**
-     * warns a player by adding an infraction
+     * gets the infraction type from the alias of the command used
      * 
-     * @param sender what sent the command
-     * @param name player name to warn
-     * @param reason reason for the warning
-     * 
-     * @return whether it was succesful or not
+     * @param label alias of the command used
+     * @return infraction type
      */
-    public boolean warn(CommandSender sender, Player player, String reason) {
-        //make sure the player is not null
-        if(player == null)
-            return false;
-        
-        //create the warning infraction
-        Infraction infract = createInfraction(sender, player.getName(), reason, "warned");
-        
-        //send the receiving player a message about being infracted
-        player.sendRawMessage(infract.getOutput(player.getName()));
-        
-        //success!
-        return true;
-    }
-    
-    /**
-     * kicks a player by adding an infraction and removing them from the server
-     * 
-     * @param sender what sent the command
-     * @param name player name to kick
-     * @param reason reason for the kick
-     * 
-     * @return whether it was succesful or not
-     */
-    public boolean kick(CommandSender sender, Player player, String reason) {
-        //make sure the player is not null
-        if(player == null)
-            return false;
-        
-        //create the kick infraction
-        Infraction infract = createInfraction(sender, player.getName(), reason, "kicked");
-        
-        //kick the player from the server
-        player.kickPlayer(infract.getOutput(player.getName()));
-        
-        //success!
-        return true;
-    }
-    
-    /**
-     * bans a player by adding an infraction, removes them from the server until pardoned
-     * 
-     * @param sender what sent the command
-     * @param name player name to ban
-     * @param reason reason for the ban
-     * 
-     * @return whether it was successful or not
-     */
-    public boolean ban(CommandSender sender, Player player, String reason) {
-        //make sure the player is not null
-        if(player == null)
-            return false;
-        
-        //create the ban infraction
-        Infraction infract = createInfraction(sender, player.getName(), reason, "banned");
-        
-        //kick the player from the server
-        player.kickPlayer(infract.getOutput(player.getName()));
-        
-        //success!
-        return true;
-    }
-    
-    /**
-     * creates the underlying infraction that is to be added
-     * 
-     * @param sender what sent the commad
-     * @param player player being infracted
-     * @param reason reason for the infraction
-     * @param type type of infraction
-     */
-    protected Infraction createInfraction(CommandSender sender, String name, String reason, String type) {
-        //create the ifnraction via the manager, store it for now
-        Infraction infract = manager.createInfraction(sender.getName(), name, type, reason);
-        
-        //notify all moderators and admins of the infraction
-        notifyOfInfract(infract);
-        
-        //send the infraction to the calling code
-        return infract;
-    }
-    
-    /**
-     * notifies the sender if the player isn't on at the time of infraction
-     * 
-     * @param sender what sent the command
-     * @param name player name that was tried
-     */
-    private void playerNotOnlineNotification(CommandSender sender, String name) {
-        String msg = "Player "+name+" is not online";
-        if(sender instanceof Player)
-            ((Player)sender).sendRawMessage(ChatColor.RED+msg);
+    protected InfractionType getInfractionType(String label) {
+        InfractionType type;
+        /*switch (label) {
+            case "kick":
+                type = InfractionType.KICK;
+                break;
+            case "ban":
+                type = InfractionType.BAN;
+                break;
+            default:
+                type = InfractionType.WARN;
+                break;
+        }*/
+        if(label.equals("kick"))
+            type = InfractionType.KICK;
+        else if(label.equals("ban"))
+            type = InfractionType.BAN;
         else
-            sender.sendMessage(msg);
+            type = InfractionType.WARN;
+        
+        return type;
     }
     
     /**
-     * notifies all moderators and admins of the infraction that happened
+     * gets the reason for an infraction fromthe argument list
      * 
-     * @param infract infraction that was given out
+     * @param args arguments given to command
+     * @return reason for the infraction
      */
-    private void notifyOfInfract(Infraction infract) {
-        //go through an notify all moderators and admins
-        for(Player player : plugin.getServer().getOnlinePlayers())
-            //make sure the player is a moderator or admin
-            if(player.hasPermission(InfractionPerm.MODERATOR.toString()) ||
-               player.hasPermission(InfractionPerm.ADMIN.toString()))
-                //if the current player equals the infracted player, don't send the message
-                //as he/she would already have it
-                if(!infract.player.equals(player.getName()))
-                    //send the notification
-                    player.sendRawMessage(infract.getOutput(player.getName()));
-        
-        //send notification to the console
-        System.out.println(infract.getConsoleOutput());
-    }
-    
-    /**
-     * grabs the reason from the argument array, for the infraction
-     * 
-     * @param args arguments passed to the command
-     * @param start starting index to use
-     * 
-     * @return reason for infraction with spaces between words
-     */
-    protected String getReasonFromArgs(String [] args, int start) {
-        String ret = "";
-        
-        if(start >= args.length)
-            return ret;
-        
+    protected String getReason(String[] args, int start) {
+        String reason = "";
         int i;
         for(i = start; i < args.length-1; ++i)
-            ret += args[i]+" ";
-        ret += args[i];
+            reason += args[i]+" ";
+        reason += args[i];
         
-        return ret;
+        return reason;
     }
 }

@@ -1,144 +1,246 @@
 package net.mctitan.infraction;
 
-import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
 
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
- * Represents a single infraction on a player
+ * Represents an infraction given
  * 
- * @author mindless728
+ * @author Colin
  */
-public class Infraction implements Serializable, Comparable {
-    /** the player name who issued the command */
-    public String issuer;
+public class Infraction implements Serializable {
+    /** player that received the infraction */
+    public PlayerData player;
     
-    /** the player that was infracted */
-    public String player;
+    /** player that issued the infraction */
+    public PlayerData issuer;
     
-    /** the type of infraction */
-    public String type;
+    /** type of infraction */
+    public InfractionType type;
     
-    /** the reason for the infractions */
+    /** reason for the infraction */
     public String reason;
     
-    /** the date and time of the infraction */
-    public String datetime;
+    /** date of the infraction */
+    public String date;
     
-    /** the moderator+ that pardoned the player */
-    public String pardoner;
+    /** time of the infraction */
+    public String time;
     
-    /** if the infraction is pardoned */
-    public boolean pardoned;
+    /** used to link infractions with a pardon if it exists, null otherwise */
+    public Infraction infract;
     
-    /** the formatter for the date and time */
-    private static transient final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    /** how the date gets formatted */
+    private static transient final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
     
-    /** chat color for normal test */
-    private static transient final ChatColor NORMAL = ChatColor.WHITE;
+    /** how the time gets formatted */
+    private static transient final SimpleDateFormat TIME_FORMAT = new SimpleDateFormat("HH:mm:ss");
     
-    /** chat color for the date and time test */
-    private static transient final ChatColor DATETIME = ChatColor.LIGHT_PURPLE;
+    /** generic output sent on the fly (also known as fast) */
+    private static transient final String ON_FLY_OUTPUT =
+            InfractionRegex.COLOR_ISSUER_REGEX+InfractionRegex.ISSUER_REGEX+" "+InfractionRegex.COLOR_TYPE_REGEX+InfractionRegex.TYPE_REGEX
+            +" "+InfractionRegex.COLOR_PLAYER_REGEX+InfractionRegex.PLAYER_REGEX+" "+InfractionRegex.COLOR_NORMAL_REGEX+"for "
+            +InfractionRegex.COLOR_REASON_REGEX+"\""+InfractionRegex.REASON_REGEX+"\"";
     
-    /** chat color for the issuer text */
-    private static transient final ChatColor ISSUER = ChatColor.GREEN;
+    /** generic full output of the infraction */
+    private static transient final String FULL_OUTPUT =
+            InfractionRegex.COLOR_DATETIME_REGEX+"["+InfractionRegex.DATE_REGEX+" "+InfractionRegex.TIME_REGEX+"] "+InfractionRegex.COLOR_ISSUER_REGEX
+            +InfractionRegex.ISSUER_REGEX+ " "+InfractionRegex.COLOR_TYPE_REGEX+InfractionRegex.TYPE_REGEX+" "+InfractionRegex.COLOR_PLAYER_REGEX
+            +InfractionRegex.PLAYER_REGEX+" "+InfractionRegex.COLOR_NORMAL_REGEX+"for "+InfractionRegex.COLOR_REASON_REGEX+"\""
+            +InfractionRegex.REASON_REGEX+"\"";
     
-    /** chat color for the type text */
-    private static transient final ChatColor TYPE = ChatColor.GOLD;
-    
-    /** chat color for the player text*/
-    private static transient final ChatColor PLAYER = ChatColor.RED;
-    
-    /** chat color for the reason text */
-    private static transient final ChatColor REASON = ChatColor.DARK_GRAY;
-    
-    /** chat color for the pardon text */
-    private static transient final ChatColor PARDON = ChatColor.AQUA;
+    /** you, duh! */
+    private static transient final String YOU = "You";
     
     /**
-     * Constructor that takes in the issuer, player, type, and reason
+     * Constructor uses the minimal amount of information needed to make one
      * 
-     * @param i issuer's player name
-     * @param p player's player name
-     * @param t type of infraction
-     * @param r reason for the infraction
+     * @param player player that is receiving the infraction
+     * @param issuer player that issued the infraction
+     * @param type type of infraction
+     * @param reason reason for the infraction
      */
-    public Infraction(String i, String p, String t, String r) {
-        this(i,p,t,r,format.format(new Date()));
+    public Infraction(PlayerData player,
+                      PlayerData issuer,
+                      InfractionType type,
+                      String reason) {
+        this(player,issuer,type,reason,null);
     }
     
     /**
-     * Constructor that takes in all information for creating an infraction
+     * Constructor that is only missing the date and time
      * 
-     * @param i issuer's player name
-     * @param p player's player name
-     * @param t type of infraction
-     * @param r reason for infraction
-     * @param dt date and time of the infraction
+     * @param player player that is receiving the infraction
+     * @param issuer player that issued the infraction
+     * @param type type of infraction
+     * @param reason reason for the infraction
+     * @param infract if this is a pardon, the linking of the infractions
      */
-    public Infraction(String i, String p, String t, String r, String dt) {
-        issuer = i;
-        player = p;
-        type = t;
-        reason = r;
-        datetime = dt;
+    public Infraction(PlayerData player,
+                      PlayerData issuer,
+                      InfractionType type,
+                      String reason,
+                      Infraction infract) {
+        this(player,issuer,type,reason,infract,DATE_FORMAT.format(new Date()),TIME_FORMAT.format(new Date()));
     }
     
     /**
-     * gets the output for the infraction for a given player, text changes depending
-     * on player name this output goed to
+     * Constructor that is only missing the link to another infraction
      * 
-     * @param name the reveicing player's name
-     * @return the msg to be sent
+     * @param player player that is receiving the infraction
+     * @param issuer player that issued the infraction
+     * @param type type of infraction
+     * @param reason reason for the infractions
+     * @param date date of the infraction
+     * @param time time of infraction
      */
-    public String getOutput(String name) {
-        String itest = (pardoned?pardoner:issuer); //use pardoner or issuer
-        String i = (name.equals(itest)?"You":issuer); //use itest or "You"
-        String p = (name.equals(player)?"You":player); //use player name or "You"
-        String t = (pardoned?"pardoned":type); //use the type or pardoned
-        ChatColor CT = (pardoned?PARDON:TYPE); //yse type or pardon for coloring
-        
-        String ret = ISSUER+i+" "+CT+t+" "+PLAYER+p+NORMAL+" for "+REASON+"\""+reason+"\"";
-        
-        return ret;
+    public Infraction(PlayerData player,
+                      PlayerData issuer,
+                      InfractionType type,
+                      String reason,
+                      String date,
+                      String time) {
+        this(player,issuer,type,reason,null,date,time);
     }
     
     /**
-     * gets the output for the console, has no colored text
+     * Constructor that has every bit of information needed to make the infraction
      * 
-     * @return the msg for the console
+     * @param player player receiving the infraction
+     * @param issuer player that issued the infraction
+     * @param type type of infraction
+     * @param reason reason for the infraction
+     * @param infract if this is a pardon, the linking of the infractions
+     * @param date date of the infraction
+     * @param time time of the infraction
      */
-    public String getConsoleOutput() {
-        String itest = (pardoned?pardoner:issuer);
-        String t = (pardoned?"pardoned":type);
+    public Infraction(PlayerData player,
+                      PlayerData issuer,
+                      InfractionType type,
+                      String reason,
+                      Infraction infract,
+                      String date,
+                      String time) {
+        //initialize the data in this object
+        this.player = player;
+        this.issuer = issuer;
+        this.type = type;
+        this.reason = reason;
+        this.infract = infract;
+        this.date = date;
+        this.time = time;
         
-        String ret = itest+" "+t+" "+player+" for "+reason;
+        //add the infractions to the player and issuer
+        addInfractions();
         
-        return ret;
+        //link this to the other infraction
+        linkInfractions();
+        
+        //see if the player should be kicked
+        kickPlayer();
+    }
+    
+    /** adds the infraction to the player and issuer */
+    private void addInfractions() {
+        //add infraction to player infractions
+        player.addPlayerInfraction(this);
+        
+        //add infraction to issueer moderations
+        issuer.addModeratorInfraction(this);
+    }
+    
+    /** links the original infraction if this is a pardon, nothing otherwise */
+    private void linkInfractions() {
+        if(infract == null)
+            return;
+        
+        infract.infract = this;
+    }
+    
+    /** if the infraction is a kick or ban, try to kick the player */
+    private void kickPlayer() {
+        if(type.equals(InfractionType.KICK) || type.equals(InfractionType.BAN)) {
+            Player p = InfractionPlugin.getInstance().getServer().getPlayer(player.name);
+            if(p != null)
+                p.kickPlayer(getOnFlyOutput(p.getName()));
+        }
     }
     
     /**
-     * the information needed toshow the infraction when checking it
+     * calculates the on the fly aka fast output.  This output is used to tell
+     * the issuer, player, and other moderators about what happened.
      * 
-     * @return the infractions text formatted for the minecraft screen
+     * @param name player name that is receiving the notification
+     * @return the output that the player will receive
      */
-    @Override
-    public String toString() {
-        String ret = NORMAL+"["+DATETIME+datetime+NORMAL+"] "+ISSUER+issuer+" "+
-                     TYPE+type+" "+PLAYER+player+NORMAL+" for "+REASON+"\""+reason+"\"";
-        if(pardoned)
-            ret += PARDON+" - Pardoned By: "+pardoner;
+    public String getOnFlyOutput(String name) {
+        //get outputed player and issuer name
+        String pname = (name.equals(player.name)?YOU:player.name);
+        String iname = (name.equals(issuer.name)?YOU:issuer.name);
         
-        return ret;
+        String msg = ON_FLY_OUTPUT;
+        //replace all of the data in the string
+        msg = msg.replace(InfractionRegex.ISSUER_REGEX,iname);
+        msg = msg.replace(InfractionRegex.TYPE_REGEX,type.output);
+        msg = msg.replace(InfractionRegex.PLAYER_REGEX,pname);
+        msg = msg.replace(InfractionRegex.REASON_REGEX,reason);
+        
+        //replace all color in output
+        msg = InfractionChatColor.replaceColor(msg, InfractionChatColor.COLOR_ISSUER);
+        msg = InfractionChatColor.replaceColor(msg, type.color);
+        msg = InfractionChatColor.replaceColor(msg, player.getColor());
+        msg = InfractionChatColor.replaceColor(msg, InfractionChatColor.COlOR_NORMAL);
+        msg = InfractionChatColor.replaceColor(msg, InfractionChatColor.COLOR_REASON);
+        
+        return msg;
     }
     
-    @Override
-    public int compareTo(Object o) {
-        if(o == null || !(o instanceof Infraction))
-            return 0;
-        Infraction infract = (Infraction)o;
-        return infract.datetime.compareTo(this.datetime);
+    /**
+     * calculates the on the full output.  This output is used to tell
+     * the issuer, player, and other moderators about what happened.
+     * 
+     * @param name player name that is receiving the notification
+     * @return the output that the player will receive
+     */
+    public String getFullOutput(String name) {
+        //get outputed player and issuer name
+        String pname = (name.equals(player.name)?YOU:player.name);
+        String iname = (name.equals(issuer.name)?YOU:issuer.name);
+        
+        String msg = FULL_OUTPUT;
+        
+        //replace all data in the string
+        msg = msg.replace(InfractionRegex.DATE_REGEX,date);
+        msg = msg.replace(InfractionRegex.TIME_REGEX,time);
+        msg = msg.replace(InfractionRegex.ISSUER_REGEX,iname);
+        msg = msg.replace(InfractionRegex.TYPE_REGEX,type.output);
+        msg = msg.replace(InfractionRegex.PLAYER_REGEX,pname);
+        msg = msg.replace(InfractionRegex.REASON_REGEX,reason);
+        
+        //replace all color codes in string
+        msg = InfractionChatColor.replaceColor(msg, InfractionChatColor.COLOR_DATETIME);
+        msg = InfractionChatColor.replaceColor(msg, InfractionChatColor.COLOR_ISSUER);
+        msg = InfractionChatColor.replaceColor(msg, type.color);
+        msg = InfractionChatColor.replaceColor(msg, player.getColor());
+        msg = InfractionChatColor.replaceColor(msg, InfractionChatColor.COlOR_NORMAL);
+        msg = InfractionChatColor.replaceColor(msg, InfractionChatColor.COLOR_REASON);
+        
+        return msg;
+    }
+    
+    /**
+     * Used to test this class without a server running
+     * @param args not used
+     */
+    public static void main(String [] args) {
+        PlayerData player = new PlayerData("HerbieVersmells");
+        PlayerData issuer = new PlayerData("mindless728");
+        Infraction infract = new Infraction(player, issuer, InfractionType.WARN, "being a dick");
+        
+        System.out.println(infract.getOnFlyOutput(player.name));
+        System.out.println(infract.getFullOutput(issuer.name));
     }
 }

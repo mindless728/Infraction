@@ -37,3 +37,12 @@ commands:
     infracts:
         description: checks a players infractions
         usage: /infracts <player> <page>
+    donate_pardon:
+        description: uses a donation to pardon last infraction
+        usage: /donate_pardon <player>
+    donate_delete:
+        description: uses a donation to delete last infraction
+        usage: /donate_delete <player>
+    donate_deleteall:
+        description: uses a donation to delete all infractions
+        usage: /donate_deleteall <player>

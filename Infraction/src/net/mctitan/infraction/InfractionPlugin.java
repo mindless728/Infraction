@@ -3,98 +3,104 @@ package net.mctitan.infraction;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import net.mctitan.infraction.commands.AdminCommands;
+import net.mctitan.infraction.commands.DonateCommands;
 import net.mctitan.infraction.commands.OfflineCommands;
 import net.mctitan.infraction.commands.OnlineCommands;
-
 import net.mctitan.infraction.misc.DropControl;
 import net.mctitan.infraction.misc.SpamControl;
 
 /**
- * The actual Bukkit plugin, should be responsible to get everything setup
- * for use with Bukkit
+ * The actual plugin that bukkit will run, should initialize the system
+ * and add the hooks needed for the plugin to run
  * 
- * @author mindless728
+ * @author Colin
  */
 public class InfractionPlugin extends JavaPlugin {
-    /** holds the static instance of this plugin */
+    /** instance of the plugin, treated like a singleton object */
     private static InfractionPlugin instance;
     
-    private InfractionManager manager;
+    /** infraction manager */
+    private static InfractionManager manager;
     
-    /** listenr for player login events */
+    /** controls the admin commands */
+    private AdminCommands admin;
+    
+    /** controls the donation commands */
+    private DonateCommands donate;
+    
+    /** controls the offline comands */
+    private OfflineCommands offline;
+    
+    /** controls the online command */
+    private OnlineCommands online;
+    
+    /** controls the drop rate of players */
+    private DropControl drop;
+    
+    /** controls the spam rate of players */
+    private SpamControl spam;
+    
+    /** checks when people join to see if they are banned or not */
     private InfractionListener listener;
     
-    /** holds the admin command executor */
-    private AdminCommands adminCommands;
-    
-    /** holds the offline command executor */
-    private OfflineCommands offlineCommands;
-    
-    /** holds the online command executor */
-    private OnlineCommands onlineCommands;
-    
-    /** holds the drop controller */
-    private DropControl dropControl;
-    
-    /** holds the chat/command controller */
-    private SpamControl spamControl;
-    
-    /** hoe often the repeating controllers should be run */
-    private int delay = 20;
-    
-    /** Called when the plugin is enabled */
+    /** called when the plugin is enabled */
     @Override
     public void onEnable() {
-        //grab the instance, needs to be done first
+        //set the instance
         instance = this;
         manager = InfractionManager.getInstance();
         
-        //create all of the objects needed
+        //create the objects needed
+        admin = new AdminCommands();
+        donate = new DonateCommands();
+        offline = new OfflineCommands();
+        online = new OnlineCommands();
+        
+        drop = new DropControl();
+        spam = new SpamControl();
+        
         listener = new InfractionListener();
         
-        adminCommands = new AdminCommands();
-        offlineCommands = new OfflineCommands();
-        onlineCommands = new OnlineCommands();
+        //get each command, and add an executor for it
+        getCommand("infracts").setExecutor(admin);
+        getCommand("check").setExecutor(admin);
+        getCommand("pardon").setExecutor(admin);
+        getCommand("delete").setExecutor(admin);
+        getCommand("deleteall").setExecutor(admin);
         
-        dropControl = new DropControl();
-        spamControl = new SpamControl();
+        getCommand("donate_pardon").setExecutor(donate);
+        getCommand("donate_delete").setExecutor(donate);
+        getCommand("donate_deleteall").setExecutor(donate);
         
-        //@TODO read in configuration data
+        getCommand("owarn").setExecutor(offline);
+        getCommand("okick").setExecutor(offline);
+        getCommand("oban").setExecutor(offline);
         
-        //register command executors will commands
-        getCommand("infracts").setExecutor(adminCommands);
-        getCommand("pardon").setExecutor(adminCommands);
-        getCommand("delete").setExecutor(adminCommands);
-        getCommand("deleteall").setExecutor(adminCommands);
-        getCommand("check").setExecutor(adminCommands);
+        getCommand("warn").setExecutor(online);
+        getCommand("kick").setExecutor(online);
+        getCommand("ban").setExecutor(online);
         
-        getCommand("owarn").setExecutor(offlineCommands);
-        getCommand("okick").setExecutor(offlineCommands);
-        getCommand("oban").setExecutor(offlineCommands);
-        
-        getCommand("warn").setExecutor(onlineCommands);
-        getCommand("kick").setExecutor(onlineCommands);
-        getCommand("ban").setExecutor(onlineCommands);
-        
-        //register all of the listeners
+        //register the listeners
+        getServer().getPluginManager().registerEvents(drop, this);
+        getServer().getPluginManager().registerEvents(spam, this);
         getServer().getPluginManager().registerEvents(listener, this);
-        getServer().getPluginManager().registerEvents(dropControl, this);
-        getServer().getPluginManager().registerEvents(spamControl, this);
         
-        //schedule repeating tasks
-        getServer().getScheduler().scheduleSyncRepeatingTask(this, dropControl, 1, 20);
-        getServer().getScheduler().scheduleSyncRepeatingTask(this, spamControl, 1, 20);
+        //register tasks
+        getServer().getScheduler().scheduleSyncRepeatingTask(this, drop, 1, 20);
+        getServer().getScheduler().scheduleSyncRepeatingTask(this, spam, 1, 20);
     }
     
-    /** Called when the plugin is disabled */
+    /** called when the plugin is disabled */
     @Override
     public void onDisable() {
         manager.save();
+        instance = null;
     }
     
     /**
-     * gets the singleton instance of this class
-     * @return 
+     * get the instance of the plugin
+     * 
+     * @return singleton like instance of the plugin
      */
     public static InfractionPlugin getInstance() {
         return instance;

@@ -7,6 +7,7 @@ import org.bukkit.event.player.PlayerEvent;
 
 import net.mctitan.infraction.Infraction;
 import net.mctitan.infraction.InfractionManager;
+import net.mctitan.infraction.InfractionType;
 
 import java.util.HashMap;
 
@@ -24,7 +25,7 @@ public abstract class RateController implements Runnable, Listener {
     
     /** default contructor that creates/obtains objects */
     public RateController() {
-        tracker = new HashMap<>();
+        tracker = new HashMap<String,Integer>();
         manager = InfractionManager.getInstance();
     }
     
@@ -32,7 +33,7 @@ public abstract class RateController implements Runnable, Listener {
      * registers a player with the given rate controller, if too high a ban ensues
      * @param player 
      */
-    protected void register(Player player) {
+    protected boolean register(Player player) {
         //get the current amount
         Integer i = tracker.get(player.getName());
         
@@ -44,10 +45,18 @@ public abstract class RateController implements Runnable, Listener {
         ++i;
         
         //if the amount id too high, create an infraction to ban and kick the player
-        if(i >= getLimiter()) {
-            Infraction infract = manager.createInfraction(getIssuer(), player.getName(), "banned", getReason());
-            player.kickPlayer(infract.getOutput(player.getName()));
+        if(i.compareTo(getLimiter()) >= 0) {
+            manager.createInfraction(getIssuer(), player.getName(), InfractionType.BAN, getReason());
+            
+            //player was banned
+            return true;
         }
+        
+        //push the amount back into the tracker
+        tracker.put(player.getName(), i);
+        
+        //player was not banned
+        return false;
     }
     
     /** the tracker needs to be cleared every so often */
@@ -64,13 +73,18 @@ public abstract class RateController implements Runnable, Listener {
     protected void genericEvent(PlayerEvent event) {
         Player player = event.getPlayer();
         
-        if(manager.isBanned(player.getName())) {
+        //if the player is banned, cancel the event, and return
+        if(manager.getPlayerData(player.getName()).isBanned()) {
             if(event instanceof Cancellable)
                 ((Cancellable)event).setCancelled(true);
             return;
         }
-            
-        register(player);
+         
+        
+        //register this event to the player
+        if(register(player))
+            if(event instanceof Cancellable)
+                ((Cancellable)event).setCancelled(true);
     }
     
     /**

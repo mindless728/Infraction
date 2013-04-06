@@ -40,11 +40,8 @@ public class SpamControl extends RateController {
      * 
      * @param event event triggered by player chat
      */
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerChat(PlayerChatEvent event) {
-        if(event.isCancelled())
-            return;
-        
         genericEvent(event);
     }
     
@@ -53,11 +50,8 @@ public class SpamControl extends RateController {
      * 
      * @param event event triggered when a player issues a command
      */
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerCommand(PlayerCommandPreprocessEvent event) {
-        if(event.isCancelled())
-            return;
-        
         genericEvent(event);
     }
 }
