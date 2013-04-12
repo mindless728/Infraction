@@ -41,7 +41,7 @@ public class PlayerData implements Serializable {
             +"Infractions (Page "+InfractionRegex.COLOR_PAGE_REGEX+InfractionRegex.PAGE_REGEX+InfractionRegex.COLOR_NORMAL_REGEX
             +"/"+InfractionRegex.COLOR_PAGE_REGEX+InfractionRegex.PAGES_REGEX+InfractionRegex.COLOR_NORMAL_REGEX+")";
     
-    /** generic header for ifnractions received by the players */
+    /** generic header for infractions received by the players */
     private static transient final String OUTPUT_MODERATOR_HEADER =
             InfractionRegex.COLOR_ISSUER_REGEX+InfractionRegex.PLAYER_REGEX+"'s "+InfractionRegex.COLOR_NORMAL_REGEX
             +"Given Infractions (Page "+InfractionRegex.COLOR_PAGE_REGEX+InfractionRegex.PAGE_REGEX+InfractionRegex.COLOR_NORMAL_REGEX
